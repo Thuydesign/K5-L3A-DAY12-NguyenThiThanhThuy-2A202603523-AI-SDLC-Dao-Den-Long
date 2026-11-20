@@ -1,6 +1,8 @@
 # Project instructions
-- Keep `src/sim.js` as the shared source of gameplay rules for browser and headless.
-- Contract parameters must match `game.contract.json`.
-- Headless output is deterministic JSONL; do not add visual-only entities to simulation output.
-- Run `npm run build` and at least one seeded headless scenario after changing simulation.
-- Keep runtime dependency-free; target macOS/Linux and Python 3 static hosting.
+- Shared deterministic gameplay logic lives in src/sim.js; fixed geometry and spawn schedules live in src/maps.js.
+- Contract tuning in game.contract.json must exactly match the exported TUNING object.
+- Preserve prior phase behavior as tested in npm test; output JSONL must keep event ticks deterministic.
+- On simulation changes, run npm run build, npm test, and npm run benchmark; store honest evidence in docs/proof.
+- Add a headless scenario for each gameplay feature. Include the command and expected event/state in the Phase spec.
+- Browser-only claims (FPS, menus, audio, settings, visual layout) require real browser evidence.
+- Keep runtime dependency-free and compatible with Node.js 18+, Python 3, macOS/Linux.

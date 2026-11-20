@@ -1,5 +1,12 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đảo Đèn Lồng</title><link rel="stylesheet" href="src/style.css"></head>
-<body><main><header><div><small>ĐÊM 1 · ĐẢO BẾN</small><h1>Đảo Đèn Lồng</h1></div><div id="status">Đêm còn <b id="time">05:00</b></div></header>
-<section class="stage"><canvas id="game" aria-label="Game Đảo Đèn Lồng"></canvas><div id="overlay" class="overlay"><h2>Đêm trên Đảo Bến</h2><p>Thu thập đom đóm, thắp sáng cả năm đèn lồng và giữ Mây an toàn.</p><button id="start">Bắt đầu đêm</button></div><div class="hint">WASD di chuyển · Space nhảy · E thắp đèn · Q tỏa sáng · Kéo chuột xoay camera</div></section>
-<footer><div class="stat">🔥 <span id="flames">3</span></div><div class="stat">✨ <span id="carried">0</span>/5</div><div class="stat">🏮 <span id="lit">0</span>/5</div><div class="stat">✦ <span id="score">0</span></div></footer></main><script type="module" src="src/ui.js"></script></body></html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101327"><link rel="icon" href="data:,"><title>Đảo Đèn Lồng</title><link rel="stylesheet" href="src/style.css"></head>
+<body><main class="shell">
+<header class="mast"><div class="brand"><span class="brand-mark">✦</span><div><small>CUỘC PHIÊU LƯU CỦA MÂY</small><h1>Đảo Đèn Lồng</h1></div></div><div id="hud" class="hud hidden"><div class="hud-block flames"><small>NGỌN LỬA</small><strong id="flames">🔥 🔥 🔥</strong></div><div class="hud-block clock-wrap"><small id="night-name">ĐÊM 1</small><strong id="clock">05:00</strong><span id="wind-warning"></span></div><div class="hud-block score"><small>ĐÈN <b id="lit">0/5</b></small><strong id="score">0</strong></div></div></header>
+<section id="stage" class="stage"><canvas id="game" aria-label="Đảo Đèn Lồng — trò chơi"></canvas>
+<div id="firefly-meter" class="firefly-meter hidden" aria-label="Đom đóm đang mang"></div>
+<div id="ability-meter" class="ability-meter hidden"><span id="dash-meter">↯ LƯỚT</span><span id="pulse-meter">✧ TỎA SÁNG</span></div>
+<div id="prompt" class="prompt hidden"></div>
+<div id="overlay" class="overlay"></div>
+<div class="controls">WASD / ↑↓←→ đi <i>·</i> Space nhảy <i>·</i> Shift lướt <i>·</i> E nạp đèn <i>·</i> Q tỏa sáng <i>·</i> Esc tạm dừng</div>
+</section><footer><span>ĐẢO BẾN · 3 ĐÊM · 60 TICK/GIÂY</span><span id="settings-summary">Âm thanh bật khi bắt đầu</span></footer>
+</main><script type="module" src="src/ui.js"></script></body></html>

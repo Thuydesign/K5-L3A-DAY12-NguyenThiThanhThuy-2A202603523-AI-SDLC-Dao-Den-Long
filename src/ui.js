@@ -1,34 +1,100 @@
-import {Game} from "./sim.js";
-const canvas=document.querySelector("#game"),ctx=canvas.getContext("2d"),overlay=document.querySelector("#overlay");
-let game=null,keys=new Set(),yaw=0,drag=null,raf=0,last=0,acc=0;
+import {Game,TUNING} from "./sim.js";
+import {mapFor} from "./maps.js";
+const canvas=document.querySelector("#game"),ctx=canvas.getContext("2d",{alpha:false}),overlay=document.querySelector("#overlay");
+const hud=document.querySelector("#hud"),meter=document.querySelector("#firefly-meter"),abilities=document.querySelector("#ability-meter"),prompt=document.querySelector("#prompt"),warning=document.querySelector("#wind-warning");
+let game=null,scene="menu",keys=new Set(),pausePulse=false,yaw=0,dragX=null,raf=0,last=0,acc=0,totalScore=0,lastCountdown=-1,lastWindWarning=false;
+let settings={volume:.35,sensitivity:1};
+try{const saved=JSON.parse(localStorage.getItem("lantern-settings")||"{}");settings={...settings,...saved};}catch{}
 const held=(...codes)=>codes.some(k=>keys.has(k));
-function resize(){const d=devicePixelRatio||1,r=canvas.getBoundingClientRect();canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);}
-new ResizeObserver(resize).observe(canvas);
-document.addEventListener("keydown",e=>{if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();keys.add(e.code);});
-document.addEventListener("keyup",e=>keys.delete(e.code));
-canvas.addEventListener("pointerdown",e=>{drag=e.clientX;canvas.setPointerCapture(e.pointerId);});
-canvas.addEventListener("pointermove",e=>{if(drag!==null){yaw+=(e.clientX-drag)*.5;drag=e.clientX;}});
-canvas.addEventListener("pointerup",()=>drag=null);
-function start(){game=new Game({seed:2026});overlay.classList.add("hidden");last=performance.now();acc=0;cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);}
-document.querySelector("#start").onclick=start;
-function loop(now){if(!game)return;acc=Math.min(acc+(now-last)/1000,0.15);last=now;
- while(acc>=1/60&&game.state==="playing"){game.step({move:[(held("KeyD","ArrowRight")?1:0)-(held("KeyA","ArrowLeft")?1:0),(held("KeyW","ArrowUp")?1:0)-(held("KeyS","ArrowDown")?1:0)],cam_yaw_deg:yaw,jump:held("Space"),interact:held("KeyE"),pulse:held("KeyQ")});acc-=1/60;}
- draw();hud();if(game.state!=="playing"){overlay.innerHTML='<h2>'+ (game.state==="won"?"Đảo đã sáng!":"Bình minh đã tới")+'</h2><p>Điểm của Mây: '+game.score+'</p><button id="again">Chơi lại</button>';overlay.classList.remove("hidden");document.querySelector("#again").onclick=start;game=null;return;}raf=requestAnimationFrame(loop);}
-function draw(){
- const w=canvas.clientWidth,h=canvas.clientHeight,cx=w/2,cy=h*.52,pr=2.25;
- const project=(p)=>{const dx=p[0]-game.player.pos[0],dz=p[2]-game.player.pos[2],a=yaw*Math.PI/180;
-  const x=dx*Math.cos(a)-dz*Math.sin(a),z=dx*Math.sin(a)+dz*Math.cos(a),scale=pr/(1+Math.max(-.45,z*.018));
-  return [cx+x*scale,cy+z*scale*.44-p[1]*scale*1.7,scale,z];};
- const grd=ctx.createLinearGradient(0,0,0,h);grd.addColorStop(0,"#11152c");grd.addColorStop(.65,"#272942");grd.addColorStop(1,"#171a2b");ctx.fillStyle=grd;ctx.fillRect(0,0,w,h);
- for(let i=0;i<95;i++){const x=(i*7919)%w,y=(i*3571)%(h*.52);ctx.fillStyle="rgba(255,231,180,"+(.18+(i%5)*.09)+")";ctx.fillRect(x,y,2,2);}
- const glow=game.lanterns.filter(l=>l.lit).length;ctx.fillStyle="rgba(255,178,82,"+(glow*.025)+")";ctx.beginPath();ctx.ellipse(cx,cy+50,w*.4,h*.26,0,0,Math.PI*2);ctx.fill();
- ctx.save();ctx.translate(cx,cy+42);ctx.fillStyle="#222a3b";ctx.beginPath();ctx.ellipse(0,0,w*.48,h*.42,0,0,Math.PI*2);ctx.fill();
- ctx.strokeStyle="#354052";ctx.lineWidth=4;ctx.stroke();ctx.restore();
- // winding paths and pools of warm light
- for(let i=0;i<7;i++){ctx.fillStyle=i%2?"#34334a":"#38364a";ctx.beginPath();ctx.ellipse(cx+(i-3)*76,cy+60+(i%3)*36,31,12,-.2,0,Math.PI*2);ctx.fill();}
- for(const m of game.motes){const [x,y,s]=project(m.pos);ctx.shadowBlur=17;ctx.shadowColor="#ffd276";ctx.fillStyle="#ffe49a";ctx.beginPath();ctx.arc(x,y-5,s*2.1,0,7);ctx.fill();ctx.shadowBlur=0;}
- for(const l of game.lanterns){const [x,y,s]=project(l.pos);ctx.strokeStyle="#94714d";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-25*s);ctx.stroke();ctx.fillStyle=l.lit?"#ffc96c":"#78647e";ctx.beginPath();ctx.arc(x,y-29*s,7*s,0,7);ctx.fill();if(l.lit){ctx.shadowBlur=28;ctx.shadowColor="#ffbf62";ctx.fillStyle="#ffd485";ctx.globalAlpha=.35;ctx.beginPath();ctx.arc(x,y-29*s,17*s,0,7);ctx.fill();ctx.globalAlpha=1;ctx.shadowBlur=0;}}
- for(const s0 of game.shades){const [x,y,s]=project(s0.pos);ctx.fillStyle="#75517f";ctx.beginPath();ctx.ellipse(x,y-10*s,12*s,16*s,0,0,7);ctx.fill();ctx.fillStyle="#ff9bce";ctx.fillRect(x-5*s,y-14*s,3*s,2*s);ctx.fillRect(x+3*s,y-14*s,3*s,2*s);}
- const [px,py,ps]=project(game.player.pos);ctx.fillStyle="#090a12aa";ctx.beginPath();ctx.ellipse(px,py,15*ps,6*ps,0,0,7);ctx.fill();ctx.fillStyle="#f0c998";ctx.beginPath();ctx.arc(px,py-23*ps,8*ps,0,7);ctx.fill();ctx.fillStyle="#e5b84e";ctx.beginPath();ctx.moveTo(px-15*ps,py-28*ps);ctx.lineTo(px,py-43*ps);ctx.lineTo(px+15*ps,py-28*ps);ctx.closePath();ctx.fill();ctx.fillStyle="#cf9a4c";ctx.fillRect(px-9*ps,py-16*ps,18*ps,18*ps);ctx.fillStyle="#ffd47c";ctx.beginPath();ctx.arc(px+11*ps,py-8*ps,3*ps,0,7);ctx.fill();
+function saveSettings(){try{localStorage.setItem("lantern-settings",JSON.stringify(settings));}catch{}}
+class AudioKit{
+ constructor(){this.ctx=null;this.master=null;this.music=[];}
+ start(night){if(!("AudioContext"in window||"webkitAudioContext"in window))return;const C=window.AudioContext||window.webkitAudioContext;this.ctx??=new C();this.ctx.resume();if(!this.master){this.master=this.ctx.createGain();this.master.connect(this.ctx.destination);}this.master.gain.setTargetAtTime(settings.volume,this.ctx.currentTime,.08);
+  if(!this.music.length){for(const [f,g] of [[55,.13],[82.4,.06],[110,.025]]){const o=this.ctx.createOscillator(),v=this.ctx.createGain();o.type="sine";o.frequency.value=f;v.gain.value=g;o.connect(v);v.connect(this.master);o.start();this.music.push({o,v});}}
+  this.music.forEach((m,i)=>m.v.gain.setTargetAtTime([.13,.06,.025][i]*(night===3?1.25:1),this.ctx.currentTime,.8));
+ }
+ stop(){if(this.ctx)this.music.forEach(m=>m.v.gain.setTargetAtTime(.0001,this.ctx.currentTime,.25));}
+ setVolume(v){settings.volume=v;if(this.master&&this.ctx)this.master.gain.setTargetAtTime(v,this.ctx.currentTime,.04);}
+ tone(freq,duration=.12,type="sine",gain=.12){if(!this.ctx||!this.master)return;const o=this.ctx.createOscillator(),v=this.ctx.createGain(),t=this.ctx.currentTime;o.type=type;o.frequency.setValueAtTime(freq,t);v.gain.setValueAtTime(.0001,t);v.gain.exponentialRampToValueAtTime(Math.max(.001,gain),t+.018);v.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(v);v.connect(this.master);o.start(t);o.stop(t+duration+.03);}
+ event(e){const map={jump:[410,.12],mote_picked:[880,.08],deposit:[520,.1],lantern_lit:[660,.28],pulse:[240,.18],player_hit:[120,.2],dash:[340,.1],charm_picked:[740,.22],shade_spawned:[155,.28],drifter_steal:[180,.16],game_over:e.data?.result==="won"?[880,.55]:[105,.6]};const v=map[e.name];if(v){this.tone(v[0],v[1],e.name==="player_hit"?"sawtooth":"sine",.09);if(e.name==="lantern_lit")setTimeout(()=>this.tone(990,.24,"sine",.08),100);}}
 }
-function hud(){document.querySelector("#time").textContent=String(Math.floor(game.timeLeft/60)).padStart(2,"0")+":"+String(Math.floor(game.timeLeft%60)).padStart(2,"0");document.querySelector("#flames").textContent=game.player.flames;document.querySelector("#carried").textContent=game.player.carried;document.querySelector("#lit").textContent=game.lanterns.filter(l=>l.lit).length;document.querySelector("#score").textContent=game.score;}
+const audio=new AudioKit();
+function hideHUD(){hud.classList.add("hidden");meter.classList.add("hidden");abilities.classList.add("hidden");prompt.classList.add("hidden");}
+function screen(html){overlay.innerHTML=html;overlay.classList.remove("hidden");}
+function mainMenu(){cancelAnimationFrame(raf);scene="menu";game=null;totalScore=0;yaw=0;audio.stop();hideHUD();screen('<div class="panel"><div class="eyebrow">MỘT CÂU CHUYỆN VỀ ÁNH SÁNG</div><h2>Đảo Đèn Lồng</h2><p>Mây đi qua ba đêm sương để thắp lại những ngọn đèn và tìm đường về nhà.</p><div class="button-row"><button class="primary" id="begin">Bắt đầu</button><button id="menu-settings">Cài đặt</button></div></div>');document.querySelector("#begin").onclick=()=>intro(1);document.querySelector("#menu-settings").onclick=()=>settingsScreen("menu");drawBackdrop();}
+const intros=[
+ ["Đêm 1 — Đảo Bến","Ông Đăng: Mỗi đốm sáng nhỏ cũng có thể dẫn lối về nhà."],
+ ["Đêm 2 — Hai Đảo","Ông Đăng: Cây cầu tre còn đó. Hãy để gió mang con qua màn sương."],
+ ["Đêm 3 — Đảo Ba Tầng","Ông Đăng: Trên đỉnh tháp, bình minh vẫn nhớ đường về."]
+];
+function intro(n){scene="intro";hideHUD();const [title,quote]=intros[n-1];screen('<div class="panel"><div class="eyebrow">LỜI DẶN CỦA ÔNG ĐĂNG</div><h2>'+title+'</h2><p class="quote">“'+quote.split(": ")[1]+'”</p><p>Thu thập đom đóm, nạp ánh sáng vào mọi Đèn Lồng Lớn, và trở về trước bình minh.</p><div class="button-row"><button class="primary" id="play-night">Vào Đêm</button><button id="back-menu">Về menu</button></div></div>');document.querySelector("#play-night").onclick=()=>startNight(n,totalScore);document.querySelector("#back-menu").onclick=mainMenu;drawBackdrop();}
+function startNight(n,baseScore){cancelAnimationFrame(raf);game=new Game({seed:2026+n,night:n,totalScore:baseScore});scene="game";totalScore=baseScore;overlay.classList.add("hidden");hud.classList.remove("hidden");meter.classList.remove("hidden");abilities.classList.remove("hidden");buildMoteMeter();audio.start(n);for(const e of game.events.splice(0))audio.event(e);last=performance.now();acc=0;lastCountdown=-1;lastWindWarning=false;raf=requestAnimationFrame(loop);}
+function buildMoteMeter(){meter.innerHTML="";for(let i=0;i<TUNING.carry_capacity;i++){const c=document.createElement("span");c.className="mote-cell";meter.appendChild(c);}}
+function pauseScreen(){scene="paused";screen('<div class="panel"><div class="eyebrow">ĐÊM '+game.night+' · TẠM DỪNG</div><h2>Giữ lấy hơi thở</h2><p>Thời gian và thế giới đã dừng lại.</p><div class="button-row"><button class="primary" id="continue">Tiếp tục</button><button id="restart-night">Chơi lại Đêm</button><button id="pause-settings">Cài đặt</button><button id="pause-menu">Về menu</button></div></div>');document.querySelector("#continue").onclick=()=>{scene="game";overlay.classList.add("hidden");pausePulse=true;};document.querySelector("#restart-night").onclick=()=>startNight(game.night,game.score);document.querySelector("#pause-settings").onclick=()=>settingsScreen("paused");document.querySelector("#pause-menu").onclick=mainMenu;}
+function settingsScreen(back){scene="settings";screen('<div class="panel"><div class="eyebrow">CÀI ĐẶT</div><h2>Âm thanh & camera</h2><label class="settings-row"><span>Âm lượng</span><input id="volume" type="range" min="0" max="1" step=".01" value="'+settings.volume+'"><output id="volume-out">'+Math.round(settings.volume*100)+'%</output></label><label class="settings-row"><span>Độ nhạy chuột</span><input id="sensitivity" type="range" min=".5" max="2" step=".05" value="'+settings.sensitivity+'"><output id="sensitivity-out">'+settings.sensitivity.toFixed(2)+'×</output></label><div class="button-row"><button class="primary" id="settings-back">Quay lại</button></div></div>');const volume=document.querySelector("#volume"),sens=document.querySelector("#sensitivity");volume.oninput=()=>{audio.setVolume(Number(volume.value));document.querySelector("#volume-out").value=Math.round(settings.volume*100)+"%";saveSettings();};sens.oninput=()=>{settings.sensitivity=Number(sens.value);document.querySelector("#sensitivity-out").value=settings.sensitivity.toFixed(2)+"×";saveSettings();};document.querySelector("#settings-back").onclick=()=>back==="paused"?pauseScreen():mainMenu();}
+function finishScreen(){scene="result";cancelAnimationFrame(raf);totalScore=game.score;const won=game.state==="won",n=game.night;
+ if(won&&n===3){screen('<div class="panel"><div class="eyebrow">MÀN SƯƠNG TAN · BÌNH MINH</div><h2>Đảo đã sáng</h2><p>Ông Đăng đón Mây bên ngọn đèn cuối cùng.</p><p class="quote">Tổng điểm ba Đêm: '+totalScore+'</p><div class="button-row"><button class="primary" id="restart-all">Chơi lại từ đầu</button><button id="result-menu">Về menu</button></div></div>');document.querySelector("#restart-all").onclick=()=>{totalScore=0;intro(1);};}
+ else if(won){screen('<div class="panel"><div class="eyebrow">ĐÊM '+n+' · ĐÃ THẮP SÁNG</div><h2>Đường về đã hiện ra</h2><p>Điểm đêm này: '+(game.score-(game.initialTotalScore||0))+' · Tổng điểm: '+totalScore+'</p><div class="button-row"><button class="primary" id="next-night">Đêm kế tiếp</button><button id="result-menu">Về menu</button></div></div>');document.querySelector("#next-night").onclick=()=>intro(n+1);}
+ else {screen('<div class="panel"><div class="eyebrow">ĐÊM '+n+' · BÌNH MINH ĐÃ TỚI</div><h2>Ánh sáng chưa đủ</h2><p>Ngọn đèn còn lại sẽ đợi Mây thử lại.</p><p class="quote">Tổng điểm các Đêm đã thắng: '+totalScore+'</p><div class="button-row"><button class="primary" id="retry-night">Chơi lại Đêm</button><button id="result-menu">Về menu</button></div></div>');document.querySelector("#retry-night").onclick=()=>startNight(n,game.score);}
+ document.querySelector("#result-menu").onclick=mainMenu;drawBackdrop();}
+function loop(now){if(scene!=="game"&&scene!=="paused"&&!(scene==="settings"&&game?.state==="paused"))return;acc=Math.min(acc+(now-last)/1000,.18);last=now;
+ while(acc>=1/60&&game&&(game.state==="playing"||game.state==="paused")){
+  const input={move:[(held("KeyD","ArrowRight")?1:0)-(held("KeyA","ArrowLeft")?1:0),(held("KeyW","ArrowUp")?1:0)-(held("KeyS","ArrowDown")?1:0)],cam_yaw_deg:yaw,jump:held("Space"),dash:held("ShiftLeft","ShiftRight"),interact:held("KeyE"),pulse:held("KeyQ"),pause:pausePulse};
+  game.step(input);pausePulse=false;acc-=1/60;
+  for(const e of game.events.splice(0))audio.event(e);
+  const wm=mapFor(game.night),wp=game.simTick%(wm.windInterval||1),windWarn=game.night===3&&game.windEnabled&&wp>=wm.windInterval-wm.windWarning;if(windWarn&&!lastWindWarning)audio.tone(500,.28,"triangle",.08);lastWindWarning=windWarn;
+  if(game.state==="paused"&&scene!=="paused"&&scene!=="settings")pauseScreen();
+  else if(game.state==="playing"&&scene==="paused"){scene="game";overlay.classList.add("hidden");}
+  if(game.state==="won"||game.state==="lost"){renderHUD();finishScreen();return;}
+ }
+ if(!game)return;drawWorld();renderHUD();
+ const s=Math.ceil(game.timeLeft);if(s<=10&&s>0&&s!==lastCountdown){audio.tone(660,.08,"sine",.06);lastCountdown=s;}
+ raf=requestAnimationFrame(loop);}
+function renderHUD(){if(!game)return;const seconds=Math.max(0,Math.ceil(game.timeLeft)),clock=document.querySelector("#clock"),urgent=seconds<=30;clock.textContent=String(Math.floor(seconds/60)).padStart(2,"0")+":"+String(seconds%60).padStart(2,"0");clock.parentElement.classList.toggle("urgent",urgent);document.querySelector("#night-name").textContent=intros[game.night-1][0].toUpperCase();document.querySelector("#flames").textContent="🔥 ".repeat(Math.max(0,game.player.flames))||"—";document.querySelector("#lit").textContent=game.lanterns.filter(l=>l.lit).length+"/"+game.lanterns.length;document.querySelector("#score").textContent=game.snapshot().score;
+ [...meter.children].forEach((c,i)=>c.classList.toggle("on",i<game.player.carried));const dash=document.querySelector("#dash-meter"),pulse=document.querySelector("#pulse-meter");dash.textContent=game.player.dashCdTicks>0?"↯ LƯỚT · "+(game.player.dashCdTicks/60).toFixed(1)+"s":"↯ LƯỚT";dash.classList.toggle("ready",game.player.dashCdTicks===0);pulse.textContent=game.player.pulseCdTicks>0?"✧ TỎA SÁNG · "+(game.player.pulseCdTicks/60).toFixed(1)+"s":"✧ TỎA SÁNG";pulse.classList.toggle("ready",game.player.pulseCdTicks===0);
+ const mp=mapFor(game.night),phase=game.simTick% (mp.windInterval||1),warn=game.night===3&&game.windEnabled&&!game.wind.active&&phase>=mp.windInterval-mp.windWarning;warning.textContent=warn?"🍃 Gió mạnh sắp tới":game.wind.active?"🌬 Gió mạnh":"";warning.style.color=game.wind.active?"#a9d5d9":"#d9ce9e";
+ const near=game.lanterns.filter(l=>!l.lit).sort((a,b)=>dist(game.player.pos,a.pos)-dist(game.player.pos,b.pos))[0];if(near&&dist(game.player.pos,near.pos)<=TUNING.interact_radius){prompt.textContent="E — Nạp ánh sáng ("+game.player.carried+"/10)";prompt.classList.remove("hidden");}else prompt.classList.add("hidden");}
+function dist(a,b){return Math.hypot(a[0]-b[0],a[2]-b[2]);}
+document.addEventListener("keydown",e=>{if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(["Escape","KeyP"].includes(e.code)&&!e.repeat&&scene!=="settings"&&game&&(game.state==="playing"||game.state==="paused")){pausePulse=true;e.preventDefault();}keys.add(e.code);});
+document.addEventListener("keyup",e=>keys.delete(e.code));
+canvas.addEventListener("pointerdown",e=>{dragX=e.clientX;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener("pointermove",e=>{if(dragX!==null){yaw+=(e.clientX-dragX)*.45*settings.sensitivity;dragX=e.clientX;}});
+canvas.addEventListener("pointerup",()=>dragX=null);canvas.addEventListener("pointercancel",()=>dragX=null);
+function project(p){const w=canvas.clientWidth,h=canvas.clientHeight,cx=w/2,cy=h*.61,dx=p[0]-game.player.pos[0],dz=p[2]-game.player.pos[2],a=yaw*Math.PI/180,x=dx*Math.cos(a)-dz*Math.sin(a),z=dx*Math.sin(a)+dz*Math.cos(a),scale=12/(1+Math.max(-.55,z*.009));return[cx+x*scale,cy+z*scale*.43-p[1]*scale*2.1,scale,z];}
+function polygon(points,fill,stroke="#ffffff12"){if(points.length<3)return;ctx.beginPath();for(let i=0;i<points.length;i++){const q=project(points[i]);if(i===0)ctx.moveTo(q[0],q[1]);else ctx.lineTo(q[0],q[1]);}ctx.closePath();ctx.fillStyle=fill;ctx.fill();if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}}
+function circlePoints(x,z,r,n=64,y=0,start=0){return Array.from({length:n},(_,i)=>{const a=(start+i*360/n)*Math.PI/180;return[x+Math.cos(a)*r,y,z+Math.sin(a)*r];});}
+function drawBackdrop(){const w=canvas.clientWidth||1000,h=canvas.clientHeight||550,g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"#12152b");g.addColorStop(1,"#303148");ctx.fillStyle=g;ctx.fillRect(0,0,w,h);for(let i=0;i<80;i++){ctx.fillStyle="rgba(255,229,182,"+(.15+(i%4)*.08)+")";ctx.fillRect((i*7919)%w,(i*3571)%(h*.55),2,2);}ctx.fillStyle="#242b3c";ctx.beginPath();ctx.ellipse(w/2,h*.67,w*.37,h*.24,-.04,0,Math.PI*2);ctx.fill();for(let i=0;i<5;i++){ctx.fillStyle="#ffc978";ctx.shadowBlur=20;ctx.shadowColor="#ffbf6b";ctx.beginPath();ctx.arc(w*.2+i*w*.15,h*.58+(i%2)*24,5,0,7);ctx.fill();ctx.shadowBlur=0;}}
+function drawWorld(){if(!game)return;const w=canvas.clientWidth,h=canvas.clientHeight,map=game.map,ambient=.15+.55*game.lanterns.filter(l=>l.lit).length/game.lanterns.length;
+ const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,"#11152b");bg.addColorStop(.48,"#20243b");bg.addColorStop(1,"#101829");ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+ for(let i=0;i<72;i++){const x=(i*7919)%w,y=(i*3571)%(h*.42);ctx.fillStyle="rgba(255,229,182,"+(.12+(i%5)*.07)+")";ctx.fillRect(x,y,1.5,1.5);}
+ for(const island of map.islands)polygon(circlePoints(island.x,island.z,island.r,72),game.night===3?"#303649":"#313747","#68708444");
+ if(map.bridge)polygon([[map.bridge.x0,0,map.bridge.z0],[map.bridge.x1,0,map.bridge.z0],[map.bridge.x1,0,map.bridge.z1],[map.bridge.x0,0,map.bridge.z1]],"#785b4b","#d5a87855");
+ if(game.night===3){const outer=[],inner=[];for(let i=0;i<=24;i++){let a=i*Math.PI/24;outer.push([24*Math.cos(a),3,24*Math.sin(a)]);}for(let i=24;i>=0;i--){let a=i*Math.PI/24;inner.push([12*Math.cos(a),3,12*Math.sin(a)]);}polygon([...outer,...inner],"#4b4b5b","#ddd0b522");polygon(circlePoints(0,0,8,48,6),"#66566a","#efcb9955");
+  for(const deg of map.ramps){const a=deg*Math.PI/180,da=1.5/27,pts=[[30*Math.cos(a-da),0,30*Math.sin(a-da)],[30*Math.cos(a+da),0,30*Math.sin(a+da)],[24*Math.cos(a+da),3,24*Math.sin(a+da)],[24*Math.cos(a-da),3,24*Math.sin(a-da)]];polygon(pts,"#8a735d","#efc99a55");}
+  const [tx,ty,ts]=project([0,6,0]);ctx.fillStyle="#675142";ctx.fillRect(tx-5*ts,ty-8*ts,10*ts,8*ts);ctx.fillStyle="#9d7852";ctx.beginPath();ctx.ellipse(tx,ty-8*ts,2*ts,2*ts,0,0,7);ctx.fill();
+ }
+ ctx.fillStyle="rgba(255,177,79,"+(ambient*.12)+")";ctx.beginPath();ctx.ellipse(w/2,h*.58,w*.43,h*.25,0,0,7);ctx.fill();
+ const items=[];
+ for(const m of game.motes)items.push({pos:m.pos,depth:project(m.pos)[3],draw:()=>drawMote(m)});
+ for(const l of game.lanterns)items.push({pos:l.pos,depth:project(l.pos)[3],draw:()=>drawLantern(l)});
+ for(const c of game.charms.filter(v=>v.available))items.push({pos:c.pos,depth:project(c.pos)[3],draw:()=>drawCharm(c)});
+ for(const s of game.shades.filter(v=>v.state!=="removed"))items.push({pos:s.pos,depth:project(s.pos)[3],draw:()=>drawShade(s)});
+ for(const d of game.drifters.filter(v=>v.state!=="removed"))items.push({pos:d.pos,depth:project(d.pos)[3],draw:()=>drawDrifter(d)});
+ items.push({pos:game.player.pos,depth:project(game.player.pos)[3],draw:drawPlayer});items.sort((a,b)=>b.depth-a.depth);for(const o of items)o.draw();
+ if(game.night===3){for(const [x,z] of [[0,13],[0,0]]){const [px,py,s]=project([x,z===13?3:0,z===13?z:0]);ctx.strokeStyle="#e6c67b";ctx.lineWidth=2;ctx.beginPath();ctx.arc(px,py,12*s,0,7);ctx.stroke();}}
+ drawWind(ambient);drawLanternArrow();
+}
+function drawMote(m){const [x,y,s]=project(m.pos);ctx.globalAlpha=m.kind==="dropped"?.8:1;ctx.shadowBlur=10;ctx.shadowColor=m.kind==="dropped"?"#e8e5d7":"#ffd276";ctx.fillStyle=m.kind==="dropped"?"#e1d6bd":"#ffe49a";ctx.beginPath();ctx.arc(x,y-4*s,2.7*s,0,7);ctx.fill();ctx.shadowBlur=0;ctx.globalAlpha=1;}
+function drawLantern(l){const [x,y,s]=project(l.pos);ctx.strokeStyle="#94714d";ctx.lineWidth=Math.max(1,2*s);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y-22*s);ctx.stroke();ctx.fillStyle=l.lit?"#ffc96c":"#715f75";ctx.beginPath();ctx.arc(x,y-26*s,6*s,0,7);ctx.fill();if(l.lit){ctx.shadowBlur=23;ctx.shadowColor="#ffbf62";ctx.fillStyle="rgba(255,209,133,.5)";ctx.beginPath();ctx.arc(x,y-26*s,14*s,0,7);ctx.fill();ctx.shadowBlur=0;}}
+function drawCharm(c){const [x,y,s]=project(c.pos);ctx.save();ctx.translate(x,y-8*s);ctx.rotate(-.5);ctx.fillStyle="#c83d52";ctx.strokeStyle="#ffd177";ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,-9*s);ctx.quadraticCurveTo(12*s,-2*s,0,7*s);ctx.quadraticCurveTo(-12*s,-2*s,0,-9*s);ctx.fill();ctx.stroke();ctx.restore();}
+function drawShade(a){const [x,y,s]=project(a.pos);ctx.globalAlpha=a.state==="spawning"?.45:1;ctx.fillStyle=a.state==="stunned"?"#4e8293":a.state==="recoil"?"#b06282":"#40314f";ctx.beginPath();ctx.ellipse(x,y-9*s,10*s,14*s,0,0,7);ctx.fill();ctx.fillStyle="#ffacd1";ctx.fillRect(x-4*s,y-12*s,2*s,2*s);ctx.fillRect(x+2*s,y-12*s,2*s,2*s);ctx.globalAlpha=1;}
+function drawDrifter(d){const [x,y,s]=project(d.pos),wave=Math.sin(game.simTick/8+d.pos[0]) * 5*s;ctx.strokeStyle="#97aeba";ctx.lineWidth=3*s;ctx.beginPath();ctx.moveTo(x-13*s,y-9*s);ctx.quadraticCurveTo(x+wave,y-22*s,x+13*s,y-8*s);ctx.quadraticCurveTo(x+wave,y-2*s,x-13*s,y-9*s);ctx.stroke();ctx.fillStyle="#d0dfd9";ctx.beginPath();ctx.arc(x,y-12*s,3*s,0,7);ctx.fill();}
+function drawPlayer(){const p=game.player,[x,y,s]=project(p.pos);ctx.fillStyle="#090a12aa";ctx.beginPath();ctx.ellipse(x,y,14*s,5*s,0,0,7);ctx.fill();ctx.fillStyle="#f0c998";ctx.beginPath();ctx.arc(x,y-21*s,7*s,0,7);ctx.fill();ctx.fillStyle="#e5b84e";ctx.beginPath();ctx.moveTo(x-14*s,y-26*s);ctx.lineTo(x,y-40*s);ctx.lineTo(x+14*s,y-26*s);ctx.closePath();ctx.fill();ctx.fillStyle="#cf9a4c";ctx.fillRect(x-8*s,y-15*s,16*s,17*s);ctx.fillStyle="#ffd47c";ctx.beginPath();ctx.arc(x+10*s,y-7*s,3*s,0,7);ctx.fill();if(!p.grounded){ctx.fillStyle="#ffc97844";ctx.beginPath();ctx.arc(x,y-20*s,14*s,0,7);ctx.fill();}}
+function drawWind(ambient){const mp=mapFor(game.night),phase=game.simTick%(mp.windInterval||1),warningOn=game.night===3&&game.windEnabled&&phase>=mp.windInterval-mp.windWarning;if(!game.wind.active&&!warningOn)return;ctx.strokeStyle=game.wind.active?"#a5d3d777":"#d5c58b66";ctx.lineWidth=1.5;for(let i=0;i<13;i++){let x=(i*97+game.simTick*(game.wind.active?2:0.6))%canvas.clientWidth,y=(i*53+30)%canvas.clientHeight;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+12,y-5,x+26,y);ctx.stroke();}}
+function drawLanternArrow(){const l=game.lanterns.filter(v=>!v.lit).sort((a,b)=>dist(game.player.pos,a.pos)-dist(game.player.pos,b.pos))[0];if(!l)return;const [x,y]=project(l.pos),w=canvas.clientWidth,h=canvas.clientHeight;if(x>24&&x<w-24&&y>24&&y<h-24)return;const cx=w/2,cy=h*.55,dx=x-cx,dy=y-cy,n=Math.hypot(dx,dy)||1,scale=Math.min((w*.45)/Math.abs(dx||.001),(h*.38)/Math.abs(dy||.001)),ax=cx+dx*scale,ay=cy+dy*scale;ctx.save();ctx.translate(ax,ay);ctx.rotate(Math.atan2(dy,dx));ctx.fillStyle="#ffd17d";ctx.beginPath();ctx.moveTo(11,0);ctx.lineTo(-7,-6);ctx.lineTo(-4,0);ctx.lineTo(-7,6);ctx.closePath();ctx.fill();ctx.restore();}
+function keyPressed(e){if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(["Escape","KeyP"].includes(e.code)&&!e.repeat&&game&&(game.state==="playing"||game.state==="paused")){pausePulse=true;e.preventDefault();}keys.add(e.code);}
+document.addEventListener("keydown",keyPressed);document.addEventListener("keyup",e=>keys.delete(e.code));
+canvas.addEventListener("pointerdown",e=>{dragX=e.clientX;canvas.setPointerCapture(e.pointerId);});canvas.addEventListener("pointermove",e=>{if(dragX!==null){yaw+=(e.clientX-dragX)*.45*settings.sensitivity;dragX=e.clientX;}});canvas.addEventListener("pointerup",()=>dragX=null);canvas.addEventListener("pointercancel",()=>dragX=null);
+function resize(){const d=Math.min(devicePixelRatio||1,1.5),r=canvas.getBoundingClientRect();canvas.width=Math.max(1,Math.round(r.width*d));canvas.height=Math.max(1,Math.round(r.height*d));ctx.setTransform(d,0,0,d,0,0);if(!game)drawBackdrop();}
+new ResizeObserver(resize).observe(canvas);
+mainMenu();

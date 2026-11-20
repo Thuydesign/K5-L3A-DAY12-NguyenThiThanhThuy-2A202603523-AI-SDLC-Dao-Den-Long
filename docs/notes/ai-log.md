@@ -4,3 +4,9 @@
 - Token/price estimate: not exposed by this interface; record as unavailable rather than inventing a number.
 - Savings: no external runtime packages; one simulation module shared by game and headless.
 - AI errors found during review: none recorded yet. Verification: npm run build and npm test passed; deterministic JSONL comparison passed; local static server returned HTTP 200. Interactive browser playthrough was not captured.
+
+## Phase 2
+- Work: extended shared simulation to three fixed maps, deterministic pause/timers, dash, charm, drifter and wind; updated contract and test harness.
+- Token/price: not exposed by this interface; unavailable, not estimated.
+- Savings: no runtime dependencies; map geometry is table/formula driven; headless tests share the browser simulation.
+- AI evaluation: tests are being run; browser-only FPS/audio/layout claims remain pending until measured.
