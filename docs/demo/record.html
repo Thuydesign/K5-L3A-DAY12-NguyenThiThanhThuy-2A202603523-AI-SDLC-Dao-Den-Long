@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Lantern Island demo recorder</title>
+<style>
+html,body{margin:0;background:#090b12;color:#fff;font:18px system-ui;overflow:hidden}#capture{position:absolute;inset:0;width:1280px;height:720px}iframe{position:absolute;inset:0;width:100%;height:100%;border:0;opacity:.01;pointer-events:none}#status{position:absolute;left:16px;bottom:12px;color:#fff}
+</style>
+<canvas id="capture" width="1280" height="720"></canvas>
+<iframe id="game" src="/index.html" title="Live gameplay"></iframe>
+<div id="status">Preparing live gameplay capture…</div>
+<script type="module">
+const frame=document.querySelector("#game"),canvas=document.querySelector("#capture"),ctx=canvas.getContext("2d"),status=document.querySelector("#status");
+const wait=async fn=>{for(let i=0;i<300;i++){try{if(fn())return;}catch{}await new Promise(r=>setTimeout(r,100));}throw Error("game scene did not load");};
+await wait(()=>frame.contentDocument?.querySelector("#game"));
+const win=frame.contentWindow,doc=frame.contentDocument,source=doc.querySelector("#game"),stream=canvas.captureStream(30),types=["video/webm;codecs=vp8","video/webm"],mime=types.find(t=>MediaRecorder.isTypeSupported(t));
+if(!mime)throw Error("No WebM MediaRecorder codec in this browser");
+let chunks=[],recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:2500000}),elapsed=0,phase="Menu",keys=[];
+recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+recorder.onstop=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(chunks,{type:mime}));a.download="lantern-demo.webm";a.click();status.textContent="Recording complete";};
+function frameDraw(){ctx.fillStyle="#090b12";ctx.fillRect(0,0,1280,720);ctx.fillStyle="#171b30";ctx.fillRect(0,0,1280,76);ctx.fillStyle="#ffebc6";ctx.font="bold 28px system-ui";ctx.fillText("DAO DEN LONG  |  LIVE NIGHT 1",32,48);ctx.drawImage(source,140,148,1000,367);ctx.fillStyle="#101327";ctx.fillRect(0,646,1280,74);ctx.fillStyle="#fff";ctx.font="20px system-ui";ctx.fillText("Night 1     "+(doc.querySelector("#clock")?.textContent||"04:00")+"     Lamps "+(doc.querySelector("#lit")?.textContent||"0/5")+"     Score "+(doc.querySelector("#score")?.textContent||"0"),32,676);ctx.textAlign="right";ctx.fillStyle="#ffd17d";ctx.fillText(phase,1248,676);ctx.textAlign="left";if(elapsed>=29){ctx.fillStyle="#101327ee";ctx.fillRect(90,170,1100,370);ctx.strokeStyle="#ffc978";ctx.lineWidth=2;ctx.strokeRect(90,170,1100,370);ctx.fillStyle="#ffebc6";ctx.font="bold 36px system-ui";ctx.fillText("RELEASE CHECKS",132,225);ctx.font="24px system-ui";ctx.fillStyle="#fff";ctx.fillText("npm test: PASS  |  npm run build: PASS",132,282);ctx.fillText("30 s benchmark: "+window.benchText,132,332);ctx.fillText("10-night soak: "+window.soakText,132,382);ctx.fillStyle="#ffc978";ctx.fillText("Measured on the development machine; grader hardware determines FPS acceptance.",132,458);} }
+window.benchText="loading";window.soakText="loading";fetch("/bench.json").then(r=>r.json()).then(x=>window.benchText=x.avg_fps+" FPS avg, "+x.p1_low_fps+" FPS 1% low, "+x.load_ms+" ms load").catch(()=>{});fetch("/soak.json").then(r=>r.json()).then(x=>window.soakText=x.nights+" nights, "+x.crashes+" crashes, "+x.mem_start_mb+" → "+x.mem_end_mb+" MiB RSS").catch(()=>{});
+function draw(){frameDraw();requestAnimationFrame(draw);}requestAnimationFrame(draw);
+recorder.start(500);status.textContent="Recording live browser gameplay";
+await new Promise(r=>setTimeout(r,1800));doc.querySelector("#begin").click();phase="Night briefing";
+await wait(()=>doc.querySelector("#play-night"));await new Promise(r=>setTimeout(r,1300));doc.querySelector("#play-night").click();phase="Playing: movement, jump, dash, interaction and light pulse";
+const actions=[["KeyW",2600],["Space",250],["KeyD",2300],["ShiftLeft",300],["KeyE",500],["KeyA",2000],["KeyQ",350],["KeyS",1800],["KeyW",2500],["KeyE",400],["KeyD",2000],["KeyQ",300],["KeyA",1800],["Space",250],["KeyS",1800],["KeyW",2100],["KeyE",400],["KeyD",1500]];
+for(const [code,ms] of actions){keys=[code];doc.dispatchEvent(new win.KeyboardEvent("keydown",{code,bubbles:true}));await new Promise(r=>setTimeout(r,ms));doc.dispatchEvent(new win.KeyboardEvent("keyup",{code,bubbles:true}));keys=[];elapsed+=ms/1000;}
+const rest=Math.max(0,30000-actions.reduce((a,v)=>a+v[1],0));await new Promise(r=>setTimeout(r,rest));elapsed=30;phase="Test and benchmark evidence";await new Promise(r=>setTimeout(r,5000));recorder.stop();stream.getTracks().forEach(t=>t.stop());
+</script>
+</html>

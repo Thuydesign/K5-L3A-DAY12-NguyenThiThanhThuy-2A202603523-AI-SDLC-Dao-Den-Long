@@ -5,6 +5,7 @@
 - Added persistent local top-10 leaderboard, tie ordering, validation, and JSON export.
 - Added saved key remapping, color-distinguishable palette, reduced motion, larger UI text, and visual accessibility alerts.
 - Added run documentation, test evidence, packaging, and four-phase retrospective.
+- Added a reproducible live browser gameplay demo recorder and attached a 39-second H.264 MP4 release demonstration.
 - Breaking changes from v1.2: contract version is now 1.3 and adds `bench_cmd` and `soak_cmd`; v1.2 simulation rules and snapshots remain in force.
 
 ## Phase 3 - Contract 1.2 (breaking)

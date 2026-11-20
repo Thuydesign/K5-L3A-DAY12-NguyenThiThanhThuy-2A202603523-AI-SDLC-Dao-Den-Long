@@ -29,11 +29,14 @@ Các lệnh benchmark và soak đầy đủ (cần Firefox cài sẵn; có thể
 ```sh
 npm run bench -- --seed 42 --duration 30 --out bench.json
 npm run soak -- --seed 7 --nights 10 --out soak.json
+npm run demo:record
 ```
 
 Benchmark dùng cửa sổ headless 1280×720, 200 Bóng Mực và 100 đom đóm; có 3 giây khởi động rồi đo đủ thời lượng yêu cầu. Firefox được cấu hình `gfx.vsync.force-disable`; trình duyệt không cung cấp RSS tiến trình cho JavaScript nên `peak_mem_mb` là `null`. Renderer là Canvas 2D, không dùng engine/native GPU API; FPS phụ thuộc máy. `bench.json` ghi kết quả đo tham khảo trên máy phát triển, không thay thế phép đo trên máy chấm. `soak.json` là kết quả chạy 10 Đêm cùng tiến trình.
 
 Xuất bảng xếp hạng: `node src/server.js --export-leaderboard out.json`.
+
+`npm run demo:record` cần Firefox và FFmpeg; lệnh quay gameplay trực tiếp kèm số liệu kiểm tra, rồi ghi `docs/demo/demo.mp4` (dưới 5 phút).
 
 ## Phát hành và tài liệu
 

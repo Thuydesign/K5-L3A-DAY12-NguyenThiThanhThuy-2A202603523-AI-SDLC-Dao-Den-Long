@@ -4,3 +4,4 @@
 - Typography: system fonts; no external font or image assets.
 - AI coding and review assistance: OpenAI Codex. No AI-generated external media assets are included.
 - Runtime and browser benchmark: Node.js and Mozilla Firefox; no third-party runtime packages.
+- Demo video capture: Firefox MediaRecorder; MP4 encoding: FFmpeg (H.264).

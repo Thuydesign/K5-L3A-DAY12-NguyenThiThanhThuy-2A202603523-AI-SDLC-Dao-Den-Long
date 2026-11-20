@@ -9,6 +9,7 @@
     "test": "node src/test-contract.js && node src/test-phase4.js",
     "headless": "node src/headless.js",
     "bench": "node src/bench-run.js",
-    "soak": "node src/soak.js"
+    "soak": "node src/soak.js",
+    "demo:record": "node src/demo-run.js"
   }
 }
