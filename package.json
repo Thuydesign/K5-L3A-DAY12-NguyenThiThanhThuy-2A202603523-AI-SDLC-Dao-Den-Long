@@ -1,0 +1,11 @@
+{
+  "name": "dao-den-long",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node src/build-check.js",
+    "test": "node src/test-contract.js",
+    "headless": "node src/headless.js"
+  }
+}
