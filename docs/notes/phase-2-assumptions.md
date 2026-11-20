@@ -19,4 +19,4 @@ The supplied Ticket-02 text omits the referenced numeric tuning table and per-ob
 
 ## Geometry convention
 
-Map polar coordinates use x = cos(theta)*r and z = sin(theta)*r. Map formulas and exact coordinates are in src/maps.js. Team identity remains a placeholder because no student ID or team name was provided.
+Map polar coordinates use x = cos(theta)*r and z = sin(theta)*r. Map formulas and exact coordinates are in src/maps.js. The release contract identifies the individual submission as Nguyen Thi Thanh Thuy (2A202603523).
