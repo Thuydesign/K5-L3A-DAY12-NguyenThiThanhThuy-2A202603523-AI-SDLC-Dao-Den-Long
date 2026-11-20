@@ -1,12 +1,14 @@
 {
   "name": "dao-den-long",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node src/server.js",
     "build": "node src/build-check.js",
-    "test": "node src/test-contract.js",
+    "test": "node src/test-contract.js && node src/test-phase4.js",
     "headless": "node src/headless.js",
-    "benchmark": "node src/benchmark.js"
+    "bench": "node src/bench-run.js",
+    "soak": "node src/soak.js"
   }
 }

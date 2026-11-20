@@ -1,0 +1,19 @@
+{
+  "contract_version": "1.3",
+  "avg_fps": 59.6,
+  "p1_low_fps": 34.3,
+  "frame_ms_p95": 16.66,
+  "frames": 1789,
+  "viewport": {
+    "width": 1280,
+    "height": 635,
+    "canvas_width": 1178,
+    "canvas_height": 432
+  },
+  "load_ms": 1686,
+  "peak_mem_mb": null,
+  "vsync_off": true,
+  "renderer": "Mozilla Firefox 137.0.1 / Canvas 2D (headless)",
+  "os": "Windows_NT 10.0.26300 (x64)",
+  "memory_note": "Whole-process RSS is not exposed reliably by browser JavaScript; Firefox headless profile set gfx.vsync.force-disable=true."
+}

@@ -63,7 +63,7 @@ export class Game{
   if((this.simTick+1)%60===0)for(const sh of this.shades.filter(s=>s.state==="drain")){const l=this.lanterns.find(v=>v.id===sh.target_lantern_id);if(l?.lit)this.emit("fuel_drain",{lantern_id:l.id,shade_id:sh.id,fuel:this.fuel(l)});}
   for(const m of this.motes)if(m.ttlTicks!==null)m.ttlTicks--;
   this.motes=this.motes.filter(m=>m.ttlTicks===null||m.ttlTicks>0);
-  for(const s of this.shades)if(s.stateTicksLeft>0){s.stateTicksLeft--;if(s.stateTicksLeft===0){if(s.state==="spawning")s.state="wander";else if(s.state==="stunned"||s.state==="recoil")s.state="chase";}}
+  for(const s of this.shades)if(s.stateTicksLeft>0){s.stateTicksLeft--;if(s.stateTicksLeft===0){if(s.state==="spawning")s.state="wander";else if(s.state==="stunned")s.state="wander";else if(s.state==="recoil")s.state="chase";}}
   for(const d of this.drifters)if(d.stateTicksLeft>0){d.stateTicksLeft--;if(d.stateTicksLeft===0&&d.state==="flee")d.state="removed";}
   const world=vecMove(input.move||[0,0],input.cam_yaw_deg||0);
   this.movePlayer(input,world);
@@ -86,7 +86,7 @@ export class Game{
   const cost=l.ever_lit?TUNING.relight_cost:TUNING.lantern_cost,used=Math.min(p.carried,cost-l.deposited);if(!used)return;p.carried-=used;l.deposited+=used;this.nightScore+=used*TUNING.score.per_mote;
   if(l.deposited>=cost){const relight=l.ever_lit;l.lit=true;l.fuelUnits=TUNING.fuel_max*60;l.ever_lit=true;l.deposited=0;if(relight)l.relit_count++;this.successfulLights++;this.nightScore+=relight?TUNING.score.per_relight:TUNING.score.per_lantern;this.emit("lantern_lit",{lantern_id:l.id,relight});}}
  pushShadesFrom(l){for(const s of this.shades.filter(v=>v.state!=="removed"&&dXZ(v.pos,l.pos)<=6)){const dx=s.pos[0]-l.pos[0],dz=s.pos[2]-l.pos[2],d=Math.hypot(dx,dz);s.pos[0]=l.pos[0]+(d?dx/d:1)*6;s.pos[2]=l.pos[2]+(d?dz/d:0)*6;s.pushTicks=30;if(s.state==="drain"||s.state==="chase")s.state="wander";}}
- endNight(result,reason){if(result==="won"){this.nightScore+=this.lanterns.filter(l=>l.lit).reduce((n,l)=>n+50+Math.floor(this.fuel(l)),0)+this.player.flames*TUNING.score.per_flame_left;this.score+=this.nightScore;}this.nightScore=0;this.emitAt(this.tick,"game_over",{result,reason,night:this.night,score:result==="won"?this.score-this.initialTotalScore:0,total_score:this.score});this.state=result;}
+ endNight(result,reason){this.endReason=reason;if(result==="won"){this.nightScore+=this.lanterns.filter(l=>l.lit).reduce((n,l)=>n+50+Math.floor(this.fuel(l)),0)+this.player.flames*TUNING.score.per_flame_left;this.score+=this.nightScore;}this.nightScore=0;this.emitAt(this.tick,"game_over",{result,reason,night:this.night,score:result==="won"?this.score-this.initialTotalScore:0,total_score:this.score});this.state=result;}
  movePlayer(input,world){
   const p=this.player,was=this.prev;
   if(Math.hypot(...world)>.001)p.facing=[world[0],world[1]];
@@ -200,7 +200,7 @@ export class Game{
   const p=this.player;
   return {type:"snapshot",tick:this.tick,sim_tick:this.simTick,night:this.night,state:this.state,time_left_s:rnd(this.timeLeft),score:(this.state==="playing"||this.state==="paused"?this.score+this.nightScore:this.score),
    wind:{active:this.windActive,dir_deg:rnd(this.windDir)},successful_lights:this.successfulLights,player:{pos:p.pos.map(rnd),vel:p.vel.map(rnd),flames:p.flames,carried:p.carried,capacity:this.capacity,grounded:p.grounded,invuln:p.invulnTicks>0,dash_cd_s:rnd(p.dashCdTicks/60),pulse_cd_s:rnd(p.pulseCdTicks/60),charm_s:rnd(p.charmTicks/60)},
-   lanterns:this.lanterns.map(l=>({id:l.id,pos:l.pos.map(rnd),lit:l.lit,fuel:rnd(this.fuel(l)),ever_lit:l.ever_lit,relit_count:l.relit_count,deposited:l.deposited})),
+   lanterns:this.lanterns.map(l=>({id:l.id,pos:l.pos.map(rnd),lit:l.lit,fuel:Math.round(this.fuel(l)*10)/10,ever_lit:l.ever_lit,relit_count:l.relit_count,deposited:l.deposited})),
    shades:this.shades.map(s=>({id:s.id,pos:s.pos.map(rnd),state:s.state,target_lantern_id:s.target_lantern_id})),
    motes:this.motes.map(m=>({id:m.id,pos:m.pos.map(rnd),kind:m.kind,ttl_s:m.ttlTicks===null?null:rnd(m.ttlTicks/60)})),
    drifters:this.drifters.map(d=>({id:d.id,pos:d.pos.map(rnd),state:d.state,stolen:d.stolen})),

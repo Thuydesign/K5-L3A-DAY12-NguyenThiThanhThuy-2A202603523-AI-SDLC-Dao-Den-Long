@@ -1,7 +1,11 @@
 # Changelog
 
 ## v1.0.0 (Phase 4)
-- Release packaging, benchmark/soak tools, persisted local leaderboard and accessibility settings.
+- Bumped the runnable contract to v1.3; added repeatable 30-second browser benchmark and ten-night in-process soak tools.
+- Added persistent local top-10 leaderboard, tie ordering, validation, and JSON export.
+- Added saved key remapping, color-distinguishable palette, reduced motion, larger UI text, and visual accessibility alerts.
+- Added run documentation, test evidence, packaging, and four-phase retrospective.
+- Breaking changes from v1.2: contract version is now 1.3 and adds `bench_cmd` and `soak_cmd`; v1.2 simulation rules and snapshots remain in force.
 
 ## Phase 3 - Contract 1.2 (breaking)
 - Replaced permanent lantern lighting with fuel, refuel and relight state.
